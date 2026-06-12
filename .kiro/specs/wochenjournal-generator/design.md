@@ -182,7 +182,7 @@ Zwei feste System-Prompts plus Builder.
   ```
   **Arbeitsjournal – KW {kw} / {jahr}**
   Lernender: Timo
-  Betrieb: Appbakery / SBB, Zürich
+  Betrieb: Appbakery / SBB, Bern
   Ausbildungsjahr: 3. Lehrjahr
 
   **Was habe ich diese Woche gemacht?**

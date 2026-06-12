@@ -113,7 +113,13 @@ export default function Home() {
 
   /** Liest den text/plain-Stream und ruft pro Chunk onChunk mit dem Gesamttext. */
   async function readStream(res: Response, onChunk: (text: string) => void) {
-    if (!res.ok || !res.body) throw new Error("Antwort ungültig");
+    if (!res.ok) {
+      // Generische Server-Meldung (z. B. erschöpftes Kontingent) auslesen und
+      // weiterreichen, damit der Nutzer eine konkrete Rückmeldung erhält.
+      const msg = (await res.text().catch(() => "")).trim();
+      throw new Error(msg || FEHLERMELDUNG);
+    }
+    if (!res.body) throw new Error(FEHLERMELDUNG);
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let acc = "";
@@ -157,9 +163,9 @@ export default function Home() {
       });
       setGenerating(null);
       commitWeek(working);
-    } catch {
+    } catch (err) {
       setGenerating(null);
-      setError(FEHLERMELDUNG);
+      setError(err instanceof Error && err.message ? err.message : FEHLERMELDUNG);
     }
   }
 
@@ -198,9 +204,9 @@ export default function Home() {
       });
       setGenerating(null);
       commitWeek(working);
-    } catch {
+    } catch (err) {
       setGenerating(null);
-      setError(FEHLERMELDUNG);
+      setError(err instanceof Error && err.message ? err.message : FEHLERMELDUNG);
     }
   }
 
@@ -225,9 +231,17 @@ export default function Home() {
           {error && (
             <div
               role="alert"
-              className="rounded-lg border border-sbb-red bg-sbb-red/5 px-4 py-3 text-sm text-sbb-red"
+              className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-sbb-red bg-white px-4 py-3 text-sm text-sbb-red shadow-lg"
             >
-              {error}
+              <span className="flex-1">{error}</span>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                aria-label="Meldung schliessen"
+                className="shrink-0 font-semibold text-sbb-red hover:opacity-70"
+              >
+                ✕
+              </button>
             </div>
           )}
 

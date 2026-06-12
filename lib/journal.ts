@@ -2,7 +2,7 @@ import type { WeekJournal } from "@/types/journal";
 import { WEEKDAYS } from "@/types/journal";
 
 const HEADER_LERNENDER = "Lernender: Timo";
-const HEADER_BETRIEB = "Betrieb: Appbakery / SBB, Zürich";
+const HEADER_BETRIEB = "Betrieb: Appbakery / SBB, Bern";
 const HEADER_AUSBILDUNG = "Ausbildungsjahr: 3. Lehrjahr";
 
 /**

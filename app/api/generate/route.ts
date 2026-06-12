@@ -1,4 +1,4 @@
-import { streamCompletion } from "@/lib/ai";
+import { isQuotaError, streamCompletion } from "@/lib/ai";
 import { buildDayPrompt, buildReflectionPrompt } from "@/lib/prompt";
 import type { GenerateRequest } from "@/types/journal";
 
@@ -39,12 +39,20 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const stream = streamCompletion(system, user, maxTokens);
+    const stream = await streamCompletion(system, user, maxTokens);
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-  } catch {
-    // Keine Fehlerdetails an den Client geben (könnten Request-Infos enthalten).
+  } catch (err) {
+    // Erschöpftes Gemini-Kontingent klar kennzeichnen (HTTP 429), sonst
+    // generischer 500. Keine Fehlerdetails an den Client (könnten Request-Infos
+    // enthalten); der API-Key wird nie geloggt.
+    if (isQuotaError(err)) {
+      return new Response(
+        "Gemini-Kontingent erschöpft. Bitte versuche es später erneut.",
+        { status: 429 },
+      );
+    }
     return new Response("Generierung fehlgeschlagen.", { status: 500 });
   }
 }

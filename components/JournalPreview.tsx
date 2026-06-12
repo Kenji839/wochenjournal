@@ -2,15 +2,29 @@
 
 import { useState } from "react";
 import { composeJournal } from "@/lib/journal";
-import type { WeekJournal } from "@/types/journal";
+import type { ConfluenceUploadResponse, WeekJournal } from "@/types/journal";
 
 interface JournalPreviewProps {
   week: WeekJournal;
 }
 
+type UploadStatus =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; action: "created" | "updated" }
+  | { kind: "error" };
+
 export default function JournalPreview({ week }: JournalPreviewProps) {
   const [kopiert, setKopiert] = useState(false);
+  const [status, setStatus] = useState<UploadStatus>({ kind: "idle" });
   const text = composeJournal(week);
+
+  // Leer-Prüfung: kein Tagesabsatz und keine Reflexion → kein Upload.
+  // composeJournal liefert immer Header + Tageszeilen mit "–"-Platzhaltern,
+  // daher die Wochendaten prüfen statt den zusammengesetzten Text.
+  const istLeer =
+    !week.days.some((d) => d.text.trim() !== "") &&
+    week.reflexion.trim() === "";
 
   const handleCopy = async () => {
     try {
@@ -32,6 +46,27 @@ export default function JournalPreview({ week }: JournalPreviewProps) {
     URL.revokeObjectURL(url);
   };
 
+  const handleUpload = async () => {
+    if (istLeer || status.kind === "loading") return;
+
+    setStatus({ kind: "loading" });
+    try {
+      const res = await fetch("/api/confluence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ journalText: text, kw: week.kw, jahr: week.jahr }),
+      });
+      if (!res.ok) {
+        setStatus({ kind: "error" });
+        return;
+      }
+      const data = (await res.json()) as ConfluenceUploadResponse;
+      setStatus({ kind: "success", action: data.action });
+    } catch {
+      setStatus({ kind: "error" });
+    }
+  };
+
   return (
     <div className="rounded-lg border border-line bg-panel p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
@@ -51,8 +86,41 @@ export default function JournalPreview({ week }: JournalPreviewProps) {
           >
             Download .txt
           </button>
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={istLeer || status.kind === "loading"}
+            className="rounded-md border border-sbb-red bg-white px-3 py-1.5 text-sm font-medium text-sbb-red hover:bg-sbb-red/5 disabled:opacity-50"
+          >
+            Nach Confluence hochladen
+          </button>
         </div>
       </div>
+
+      {istLeer && (
+        <p className="mb-3 text-sm text-ink/60">
+          Erfasse zuerst Inhalte, bevor du hochlädst.
+        </p>
+      )}
+
+      {status.kind === "loading" && (
+        <p className="mb-3 text-sm text-ink/60">Wird hochgeladen …</p>
+      )}
+
+      {status.kind === "success" && (
+        <p className="mb-3 text-sm text-ink/60">
+          {status.action === "created" ? "Seite erstellt." : "Seite aktualisiert."}
+        </p>
+      )}
+
+      {status.kind === "error" && (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg border border-sbb-red bg-sbb-red/5 px-4 py-3 text-sm text-sbb-red"
+        >
+          Upload fehlgeschlagen. Bitte versuche es erneut.
+        </div>
+      )}
 
       <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md bg-page p-3 text-sm text-ink">
         {text}

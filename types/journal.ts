@@ -55,3 +55,17 @@ export type GenerateRequest =
        */
       previousWeeks: { kw: number; jahr: number; reflexion: string }[];
     };
+
+/** Request an POST /api/confluence. */
+export interface ConfluenceUploadRequest {
+  /** Fertig zusammengesetzter Journaltext (composeJournal-Ausgabe). */
+  journalText: string;
+  kw: number;
+  jahr: number;
+}
+
+/** Erfolgs-Antwort von POST /api/confluence. */
+export interface ConfluenceUploadResponse {
+  /** Kennzeichnet, ob die Seite neu erstellt oder aktualisiert wurde. */
+  action: "created" | "updated";
+}
