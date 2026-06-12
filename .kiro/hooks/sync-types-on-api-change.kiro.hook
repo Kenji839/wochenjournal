@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Sync Types On API Change",
+  "description": "Prüft beim Speichern von lib/ai.ts oder app/api/generate/route.ts, ob die TypeScript-Typen in types/journal.ts noch zur API-Request/Response-Struktur passen, und gibt sonst einen Hinweis.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "lib/ai.ts",
+      "app/api/generate/route.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "lib/ai.ts oder app/api/generate/route.ts wurde gespeichert. Prüfe, ob die Typen in types/journal.ts noch zur API passen. Konkret: (1) Der Route Handler liest den Body als GenerateRequest – stelle sicher, dass die im Handler verwendeten Felder je Modus (\"day\": weekday, stichworte; \"reflection\": kw, jahr, days, previousWeeks) exakt der Union GenerateRequest in types/journal.ts entsprechen. (2) Die an streamCompletion übergebenen Werte und dessen Rückgabetyp (ReadableStream<Uint8Array>) müssen konsistent sein. Falls Felder, Modi oder Typen voneinander abweichen, gib einen klaren Hinweis mit der konkreten Differenz und dem nötigen Abgleich aus. Wenn alles synchron ist, bestätige kurz \"Typen synchron\"."
+  }
+}

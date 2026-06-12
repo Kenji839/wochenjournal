@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Validate Prompt Structure",
+  "description": "Prüft beim Speichern von lib/prompt.ts, ob die System-Prompts alle Pflichtbestandteile enthalten (KW/Jahr-Bezug, die vier Reflexions-Überschriften, Schweizer-Hochdeutsch-Regel) und warnt sonst.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "lib/prompt.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Die Datei lib/prompt.ts wurde gespeichert. Prüfe SYSTEM_PROMPT_DAY und SYSTEM_PROMPT_REFLECTION auf Vollständigkeit. Stelle sicher, dass vorhanden sind: (1) die Schweizer-Hochdeutsch-Regel (kein \"ß\", immer \"ss\"), (2) die Anweisung, keine Details zu erfinden, (3) im Reflexions-Prompt die exakt vier Überschriften \"**Was ist mir in dieser Woche gut gelungen?**\", \"**Probleme / Herausforderungen**\", \"**Was kann ich besser machen in Zukunft?**\", \"**Was habe ich diese Woche neu gelernt?**\", (4) die Anweisung, Vorwochen-Kontext nur zum Ableiten von Fortschritten zu nutzen, (5) im Tages-Prompt die Vorgabe, genau einen Absatz ohne Wochentags-Präfix zu liefern. Falls etwas fehlt oder abweicht, gib eine klare Warnung mit der konkret fehlenden Stelle aus. Wenn alles vorhanden ist, bestätige kurz \"Prompt-Struktur OK\"."
+  }
+}
