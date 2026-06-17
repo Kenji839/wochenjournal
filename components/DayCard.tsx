@@ -26,14 +26,14 @@ export default function DayCard({
   const canGenerate = day.stichworte.trim() !== "" && !busy;
 
   return (
-    <div className="rounded-lg border border-line bg-panel p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-ink">{label}</h3>
+    <div className="flex h-full flex-col rounded-card border border-line bg-panel p-5 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-base font-semibold text-ink">{label}</h3>
         <button
           type="button"
           onClick={onGenerate}
           disabled={!canGenerate}
-          className="rounded-md bg-sbb-red px-3 py-1.5 text-sm font-medium text-white hover:bg-sbb-red-hover disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 whitespace-nowrap rounded-control bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {day.text.trim() ? "Neu generieren" : "Tag generieren"}
         </button>
@@ -43,9 +43,9 @@ export default function DayCard({
         value={day.stichworte}
         onChange={(e) => onStichworteChange(e.target.value)}
         disabled={busy}
-        rows={2}
+        rows={3}
         placeholder="Stichworte zum Tag …"
-        className="w-full resize-y rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-sbb-red disabled:opacity-60"
+        className="w-full min-w-0 flex-1 resize-y rounded-control border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-60"
       />
 
       {streaming ? (
@@ -58,7 +58,7 @@ export default function DayCard({
           value={day.text}
           onChange={(e) => onTextChange(e.target.value)}
           rows={4}
-          className="mt-3 w-full resize-y rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-sbb-red"
+          className="mt-3 w-full min-w-0 flex-1 resize-y rounded-control border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
         />
       ) : null}
     </div>

@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { composeJournal } from "@/lib/journal";
+import { journalFileName } from "@/lib/journal";
 import type { ConfluenceUploadResponse, WeekJournal } from "@/types/journal";
 
 interface JournalPreviewProps {
   week: WeekJournal;
+  displayedText: string;
+  isOverride: boolean;
+  istLeer: boolean;
+  revising: boolean;
+  busy: boolean;
+  onJournalTextChange: (value: string) => void;
+  onReset: () => void;
+  onRevise: (anweisung: string) => void;
+  onError: (message: string) => void;
 }
 
 type UploadStatus =
@@ -14,34 +23,39 @@ type UploadStatus =
   | { kind: "success"; action: "created" | "updated" }
   | { kind: "error" };
 
-export default function JournalPreview({ week }: JournalPreviewProps) {
+export default function JournalPreview({
+  week,
+  displayedText,
+  isOverride,
+  istLeer,
+  revising,
+  busy,
+  onJournalTextChange,
+  onReset,
+  onRevise,
+  onError,
+}: JournalPreviewProps) {
   const [kopiert, setKopiert] = useState(false);
   const [status, setStatus] = useState<UploadStatus>({ kind: "idle" });
-  const text = composeJournal(week);
-
-  // Leer-Prüfung: kein Tagesabsatz und keine Reflexion → kein Upload.
-  // composeJournal liefert immer Header + Tageszeilen mit "–"-Platzhaltern,
-  // daher die Wochendaten prüfen statt den zusammengesetzten Text.
-  const istLeer =
-    !week.days.some((d) => d.text.trim() !== "") &&
-    week.reflexion.trim() === "";
+  const [bestaetigungOffen, setBestaetigungOffen] = useState(false);
+  const [anweisung, setAnweisung] = useState("");
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(displayedText);
       setKopiert(true);
       setTimeout(() => setKopiert(false), 2000);
     } catch {
-      // Clipboard nicht verfügbar – still ignorieren.
+      onError("Kopieren fehlgeschlagen. Zwischenablage nicht verfügbar.");
     }
   };
 
   const handleDownload = () => {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([displayedText], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `arbeitsjournal-kw${week.kw}-${week.jahr}.txt`;
+    a.download = journalFileName(week);
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -54,7 +68,11 @@ export default function JournalPreview({ week }: JournalPreviewProps) {
       const res = await fetch("/api/confluence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ journalText: text, kw: week.kw, jahr: week.jahr }),
+        body: JSON.stringify({
+          journalText: displayedText,
+          kw: week.kw,
+          jahr: week.jahr,
+        }),
       });
       if (!res.ok) {
         setStatus({ kind: "error" });
@@ -67,22 +85,42 @@ export default function JournalPreview({ week }: JournalPreviewProps) {
     }
   };
 
+  const handleReviseClick = () => {
+    if (anweisung.trim() === "" || busy) return;
+    onRevise(anweisung);
+    setAnweisung("");
+  };
+
+  const handleResetConfirm = () => {
+    setBestaetigungOffen(false);
+    onReset();
+  };
+
   return (
-    <div className="rounded-lg border border-line bg-panel p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Gesamtes Journal</h2>
+    <div className="rounded-card border border-line bg-panel p-5 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-ink">Gesamtes Journal</h2>
+          {isOverride && (
+            <span className="rounded-full border border-primary bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
+              Manuell bearbeitet
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={handleCopy}
-            className="rounded-md border border-sbb-red bg-white px-3 py-1.5 text-sm font-medium text-sbb-red hover:bg-sbb-red/5"
+            disabled={istLeer}
+            className="rounded-control border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
           >
             {kopiert ? "✓ Kopiert!" : "Kopieren"}
           </button>
           <button
             type="button"
             onClick={handleDownload}
-            className="rounded-md border border-sbb-red bg-white px-3 py-1.5 text-sm font-medium text-sbb-red hover:bg-sbb-red/5"
+            disabled={istLeer}
+            className="rounded-control border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
           >
             Download .txt
           </button>
@@ -90,7 +128,7 @@ export default function JournalPreview({ week }: JournalPreviewProps) {
             type="button"
             onClick={handleUpload}
             disabled={istLeer || status.kind === "loading"}
-            className="rounded-md border border-sbb-red bg-white px-3 py-1.5 text-sm font-medium text-sbb-red hover:bg-sbb-red/5 disabled:opacity-50"
+            className="rounded-control border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
           >
             Nach Confluence hochladen
           </button>
@@ -116,15 +154,81 @@ export default function JournalPreview({ week }: JournalPreviewProps) {
       {status.kind === "error" && (
         <div
           role="alert"
-          className="mb-3 rounded-lg border border-sbb-red bg-sbb-red/5 px-4 py-3 text-sm text-sbb-red"
+          className="mb-3 rounded-card border border-danger bg-danger/5 px-4 py-3 text-sm text-danger"
         >
           Upload fehlgeschlagen. Bitte versuche es erneut.
         </div>
       )}
 
-      <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md bg-page p-3 text-sm text-ink">
-        {text}
-      </pre>
+      {/* Editor bzw. Streamdarstellung während der Überarbeitung */}
+      {revising ? (
+        <p className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-control bg-page p-3 text-sm text-ink">
+          {displayedText}
+          <span className="ml-0.5 inline-block animate-pulse">▋</span>
+        </p>
+      ) : (
+        <textarea
+          value={displayedText}
+          onChange={(e) => onJournalTextChange(e.target.value)}
+          maxLength={20000}
+          rows={18}
+          className="w-full resize-y rounded-control border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+        />
+      )}
+
+      {/* Aktion: aus Tagesfeldern neu zusammensetzen (nur bei Override) */}
+      {isOverride && (
+        <div className="mt-3">
+          {bestaetigungOffen ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-ink/70">
+                Manuelle Bearbeitung verwerfen?
+              </span>
+              <button
+                type="button"
+                onClick={handleResetConfirm}
+                className="rounded-control border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+              >
+                Verwerfen
+              </button>
+              <button
+                type="button"
+                onClick={() => setBestaetigungOffen(false)}
+                className="rounded-control border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink hover:bg-page focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+              >
+                Abbrechen
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setBestaetigungOffen(true)}
+              className="text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+            >
+              Aus Tagesfeldern neu zusammensetzen
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Reviser: KI-Überarbeitung per Anweisung */}
+      <div className="mt-4 flex gap-2">
+        <input
+          type="text"
+          value={anweisung}
+          onChange={(e) => setAnweisung(e.target.value)}
+          placeholder="Anweisung für die KI-Überarbeitung …"
+          className="flex-1 rounded-control border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+        />
+        <button
+          type="button"
+          onClick={handleReviseClick}
+          disabled={anweisung.trim() === "" || busy}
+          className="rounded-control bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Mit KI überarbeiten
+        </button>
+      </div>
     </div>
   );
 }

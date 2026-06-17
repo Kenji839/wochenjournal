@@ -8,9 +8,17 @@ import ReflectionPanel from "@/components/ReflectionPanel";
 import WeekSelector from "@/components/WeekSelector";
 import { getCurrentWeek } from "@/lib/date";
 import {
+  displayedJournal,
+  hasManualOverride,
+  istInhaltsleer,
+  withJournalText,
+  withoutJournalText,
+} from "@/lib/journal";
+import {
   deleteWeek,
   findWeek,
   loadWeeks,
+  previousWeekDays,
   previousWeeks,
   saveWeek,
 } from "@/lib/storage";
@@ -20,6 +28,7 @@ import { WEEKDAYS } from "@/types/journal";
 type Generating =
   | { type: "day"; weekday: Weekday }
   | { type: "reflection" }
+  | { type: "revise" }
   | null;
 
 const FEHLERMELDUNG = "Generierung fehlgeschlagen. Bitte versuche es erneut.";
@@ -84,16 +93,18 @@ export default function Home() {
   }
 
   function setDayText(weekday: Weekday, value: string) {
-    commitWeek({
-      ...week,
-      days: week.days.map((d) =>
-        d.weekday === weekday ? { ...d, text: value } : d,
-      ),
-    });
+    commitWeek(
+      withoutJournalText({
+        ...week,
+        days: week.days.map((d) =>
+          d.weekday === weekday ? { ...d, text: value } : d,
+        ),
+      }),
+    );
   }
 
   function setReflexion(value: string) {
-    commitWeek({ ...week, reflexion: value });
+    commitWeek(withoutJournalText({ ...week, reflexion: value }));
   }
 
   function selectFromHistory(selected: WeekJournal) {
@@ -146,11 +157,23 @@ export default function Home() {
     };
     setWeek(working);
 
+    let previous: { weekday: Weekday; text: string }[] = [];
+    try {
+      previous = previousWeekDays(weeks, week.kw, week.jahr);
+    } catch {
+      previous = [];
+    }
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "day", weekday, stichworte: day.stichworte }),
+        body: JSON.stringify({
+          mode: "day",
+          weekday,
+          stichworte: day.stichworte,
+          previousWeekDays: previous,
+        }),
       });
       await readStream(res, (text) => {
         working = {
@@ -162,7 +185,7 @@ export default function Home() {
         setWeek(working);
       });
       setGenerating(null);
-      commitWeek(working);
+      commitWeek(withoutJournalText(working));
     } catch (err) {
       setGenerating(null);
       setError(err instanceof Error && err.message ? err.message : FEHLERMELDUNG);
@@ -181,6 +204,8 @@ export default function Home() {
       reflexion: w.reflexion,
     }));
 
+    const aktuelleReflexion = week.reflexion;
+
     setError(null);
     setGenerating({ type: "reflection" });
     let working: WeekJournal = { ...week, reflexion: "" };
@@ -196,10 +221,54 @@ export default function Home() {
           jahr: week.jahr,
           days,
           previousWeeks: prev,
+          ...(aktuelleReflexion.trim() !== "" ? { aktuelleReflexion } : {}),
         }),
       });
       await readStream(res, (text) => {
         working = { ...working, reflexion: text };
+        setWeek(working);
+      });
+      setGenerating(null);
+      commitWeek(withoutJournalText(working));
+    } catch (err) {
+      setGenerating(null);
+      setError(err instanceof Error && err.message ? err.message : FEHLERMELDUNG);
+    }
+  }
+
+  const hatTagesabsatz = week.days.some((d) => d.text.trim() !== "");
+  const previousCount = previousWeeks(weeks, week.kw, week.jahr).length;
+
+  /** Speichert eine manuelle Überschreibung des Gesamtjournals aus dem Editor. */
+  function setJournalText(value: string) {
+    commitWeek(withJournalText(week, value));
+  }
+
+  /** Verwirft die manuelle Überschreibung und nutzt wieder den abgeleiteten Text. */
+  function resetJournalToDerived() {
+    commitWeek(withoutJournalText(week));
+  }
+
+  /** Überarbeitet das Gesamtjournal per KI anhand einer Anweisung (Streaming). */
+  async function reviseJournal(anweisung: string) {
+    if (busy || anweisung.trim() === "") return;
+    if (istInhaltsleer(week)) {
+      setError("Erfasse zuerst Inhalte, bevor du das Journal überarbeitest.");
+      return;
+    }
+    const original = displayedJournal(week);
+    setError(null);
+    setGenerating({ type: "revise" });
+    let working: WeekJournal = { ...week, journalText: "" };
+    setWeek(working);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "revise", journalText: original, anweisung }),
+      });
+      await readStream(res, (text) => {
+        working = { ...working, journalText: text };
         setWeek(working);
       });
       setGenerating(null);
@@ -210,58 +279,64 @@ export default function Home() {
     }
   }
 
-  const hatTagesabsatz = week.days.some((d) => d.text.trim() !== "");
-  const previousCount = previousWeeks(weeks, week.kw, week.jahr).length;
-
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
+    <div className="w-full px-4 sm:px-12 py-6 sm:py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-ink">
+        <h1 className="text-3xl sm:text-4xl font-bold text-ink">
           📓 Wochenjournal-Generator
         </h1>
-        <p className="text-sm text-ink/60">Appbakery / SBB – Lehrjahr 3</p>
+        <p className="text-sm text-ink/60">Wochenjournal – 3. Lehrjahr</p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-        <div className="lg:col-start-1 lg:row-start-1">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:items-start">
+        <div className="flex flex-col gap-6">
           <WeekSelector kw={week.kw} jahr={week.jahr} onChange={selectWeek} />
+
+          <HistoryPanel
+            weeks={weeks}
+            activeId={week.id}
+            onSelect={selectFromHistory}
+            onDelete={removeWeek}
+          />
         </div>
 
-        <div className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+        <div className="flex flex-col gap-6">
           {error && (
             <div
               role="alert"
-              className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-sbb-red bg-white px-4 py-3 text-sm text-sbb-red shadow-lg"
+              className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-card border border-danger bg-white px-4 py-3 text-sm text-danger shadow-lg"
             >
               <span className="flex-1">{error}</span>
               <button
                 type="button"
                 onClick={() => setError(null)}
                 aria-label="Meldung schliessen"
-                className="shrink-0 font-semibold text-sbb-red hover:opacity-70"
+                className="shrink-0 font-semibold text-danger hover:opacity-70"
               >
                 ✕
               </button>
             </div>
           )}
 
-          {WEEKDAYS.map(({ key, label }) => {
-            const day = week.days.find((d) => d.weekday === key)!;
-            return (
-              <DayCard
-                key={key}
-                day={day}
-                label={label}
-                streaming={
-                  generating?.type === "day" && generating.weekday === key
-                }
-                busy={busy}
-                onStichworteChange={(v) => setStichworte(key, v)}
-                onTextChange={(v) => setDayText(key, v)}
-                onGenerate={() => generateDay(key)}
-              />
-            );
-          })}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[repeat(5,minmax(min-content,1fr))]">
+            {WEEKDAYS.map(({ key, label }) => {
+              const day = week.days.find((d) => d.weekday === key)!;
+              return (
+                <DayCard
+                  key={key}
+                  day={day}
+                  label={label}
+                  streaming={
+                    generating?.type === "day" && generating.weekday === key
+                  }
+                  busy={busy}
+                  onStichworteChange={(v) => setStichworte(key, v)}
+                  onTextChange={(v) => setDayText(key, v)}
+                  onGenerate={() => generateDay(key)}
+                />
+              );
+            })}
+          </div>
 
           <ReflectionPanel
             reflexion={week.reflexion}
@@ -273,15 +348,17 @@ export default function Home() {
             onGenerate={generateReflection}
           />
 
-          <JournalPreview week={week} />
-        </div>
-
-        <div className="lg:col-start-1 lg:row-start-2">
-          <HistoryPanel
-            weeks={weeks}
-            activeId={week.id}
-            onSelect={selectFromHistory}
-            onDelete={removeWeek}
+          <JournalPreview
+            week={week}
+            displayedText={displayedJournal(week)}
+            isOverride={hasManualOverride(week)}
+            istLeer={istInhaltsleer(week)}
+            revising={generating?.type === "revise"}
+            busy={busy}
+            onJournalTextChange={setJournalText}
+            onReset={resetJournalToDerived}
+            onRevise={reviseJournal}
+            onError={setError}
           />
         </div>
       </div>

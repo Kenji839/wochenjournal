@@ -24,14 +24,14 @@ export default function ReflectionPanel({
   onGenerate,
 }: ReflectionPanelProps) {
   return (
-    <div className="rounded-lg border border-line bg-panel p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Reflexion</h2>
+    <div className="rounded-card border border-line bg-panel p-5 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-semibold text-ink">Reflexion</h2>
         <button
           type="button"
           onClick={onGenerate}
           disabled={!canGenerate || busy}
-          className="rounded-md bg-sbb-red px-3 py-1.5 text-sm font-medium text-white hover:bg-sbb-red-hover disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-control bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {reflexion.trim() ? "Neu generieren" : "Reflexion generieren"}
         </button>
@@ -58,7 +58,7 @@ export default function ReflectionPanel({
           value={reflexion}
           onChange={(e) => onTextChange(e.target.value)}
           rows={12}
-          className="w-full resize-y rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-sbb-red"
+          className="w-full resize-y rounded-control border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
         />
       ) : null}
     </div>

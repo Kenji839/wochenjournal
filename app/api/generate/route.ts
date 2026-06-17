@@ -1,5 +1,9 @@
 import { isQuotaError, streamCompletion } from "@/lib/ai";
-import { buildDayPrompt, buildReflectionPrompt } from "@/lib/prompt";
+import {
+  buildDayPrompt,
+  buildReflectionPrompt,
+  buildRevisePrompt,
+} from "@/lib/prompt";
 import type { GenerateRequest } from "@/types/journal";
 
 // Das Gemini-SDK läuft serverseitig (Node-Runtime); nie cachen.
@@ -8,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_TOKENS_DAY = 1024;
 const MAX_TOKENS_REFLECTION = 1500;
+const MAX_TOKENS_REVISE = 4096; // ganzes Journal kann länger sein
 
 export async function POST(request: Request): Promise<Response> {
   let body: GenerateRequest;
@@ -34,6 +39,15 @@ export async function POST(request: Request): Promise<Response> {
     }
     ({ system, user } = buildReflectionPrompt(body));
     maxTokens = MAX_TOKENS_REFLECTION;
+  } else if (body.mode === "revise") {
+    if (!body.journalText?.trim()) {
+      return new Response("Gesamtjournal fehlt.", { status: 400 });
+    }
+    if (!body.anweisung?.trim()) {
+      return new Response("Anweisung fehlt.", { status: 400 });
+    }
+    ({ system, user } = buildRevisePrompt(body));
+    maxTokens = MAX_TOKENS_REVISE;
   } else {
     return new Response("Unbekannter Modus.", { status: 400 });
   }

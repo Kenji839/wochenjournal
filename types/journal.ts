@@ -33,6 +33,11 @@ export interface WeekJournal {
   days: DayEntry[];
   /** Generierter Reflexionsblock mit den vier Abschnitten. */
   reflexion: string;
+  /**
+   * Optionale manuelle Überschreibung des Gesamtjournals (0–50'000 Zeichen).
+   * Fehlt das Feld oder ist es leer, wird der Text aus den Feldern abgeleitet.
+   */
+  journalText?: string;
   /** ISO-String der letzten Änderung. */
   updatedAt: string;
 }
@@ -43,6 +48,13 @@ export type GenerateRequest =
       mode: "day";
       weekday: Weekday;
       stichworte: string;
+      /**
+       * Tagesabsätze der direkt vorangegangenen Woche (Mo–Fr, nur nicht-leer),
+       * als Kontext für einen stimmigen Übergang. Immer vorhanden; leere Liste,
+       * wenn keine Vorwoche existiert oder diese keine Tagesabsätze enthält
+       * (nie null, nie weggelassen).
+       */
+      previousWeekDays: { weekday: Weekday; text: string }[];
     }
   | {
       mode: "reflection";
@@ -54,6 +66,18 @@ export type GenerateRequest =
        * nur Wochen mit nicht-leerer Reflexion.
        */
       previousWeeks: { kw: number; jahr: number; reflexion: string }[];
+      /**
+       * Optionale bestehende Reflexion als Ausgangsbasis bei Neugenerierung.
+       * Fehlt das Feld oder ist es leer, bleibt die Erstgenerierung unverändert.
+       */
+      aktuelleReflexion?: string;
+    }
+  | {
+      mode: "revise";
+      /** Das vollständige aktuelle Gesamtjournal. */
+      journalText: string;
+      /** Natürlichsprachliche Überarbeitungs-Anweisung. */
+      anweisung: string;
     };
 
 /** Request an POST /api/confluence. */

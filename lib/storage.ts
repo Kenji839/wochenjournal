@@ -1,4 +1,4 @@
-import type { WeekJournal } from "@/types/journal";
+import type { Weekday, WeekJournal } from "@/types/journal";
 
 const STORAGE_KEY = "wochenjournal_weeks";
 const MAX_WEEKS = 10;
@@ -21,36 +21,42 @@ export function loadWeeks(): WeekJournal[] {
   }
 }
 
-/** Schreibt die Wochenliste zurück; Fehler (z. B. Quota) werden still ignoriert. */
-function persist(weeks: WeekJournal[]): void {
-  if (!hasStorage()) return;
+/** Schreibt die Wochenliste zurück; true bei Erfolg, false bei Fehler (z. B. Quota/SSR). */
+function persist(weeks: WeekJournal[]): boolean {
+  if (!hasStorage()) return false;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(weeks));
+    return true;
   } catch {
     // Speicher nicht verfügbar / voll – App bleibt nutzbar.
+    return false;
   }
 }
 
 /**
  * Fügt eine Woche ein oder aktualisiert die bestehende (gleiche id), setzt
  * updatedAt, sortiert nach updatedAt absteigend und begrenzt auf MAX_WEEKS.
- * Gibt die aktualisierte Liste zurück.
+ * Gibt die aktualisierte Liste zurück. Bei einem Schreibfehler bleibt der zuvor
+ * gespeicherte Stand unverändert und wird zurückgegeben.
  */
 export function saveWeek(week: WeekJournal): WeekJournal[] {
+  const vorher = loadWeeks();
   const updated: WeekJournal = { ...week, updatedAt: new Date().toISOString() };
-  const ohneAlte = loadWeeks().filter((w) => w.id !== updated.id);
-  const weeks = [updated, ...ohneAlte]
+  const weeks = [updated, ...vorher.filter((w) => w.id !== updated.id)]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, MAX_WEEKS);
-  persist(weeks);
-  return weeks;
+  // Bei Schreibfehler bleibt der zuvor gespeicherte Zustand unverändert.
+  return persist(weeks) ? weeks : vorher;
 }
 
-/** Entfernt eine Woche anhand der id und gibt die aktualisierte Liste zurück. */
+/**
+ * Entfernt eine Woche anhand der id und gibt die aktualisierte Liste zurück.
+ * Bei einem Schreibfehler bleibt der zuvor gespeicherte Stand unverändert.
+ */
 export function deleteWeek(id: string): WeekJournal[] {
-  const weeks = loadWeeks().filter((w) => w.id !== id);
-  persist(weeks);
-  return weeks;
+  const vorher = loadWeeks();
+  const weeks = vorher.filter((w) => w.id !== id);
+  return persist(weeks) ? weeks : vorher;
 }
 
 /** Sucht die Woche zu einer KW/Jahr-Kombination. */
@@ -80,4 +86,33 @@ export function previousWeeks(
     .filter((w) => rang(w) < grenze && w.reflexion.trim() !== "")
     .sort((a, b) => rang(a) - rang(b)) // aufsteigend = älteste zuerst
     .slice(-limit);
+}
+
+/**
+ * Liefert die Tagesabsätze (Mo–Fr) der chronologisch unmittelbar vor (kw/jahr)
+ * liegenden gespeicherten Woche mit nicht-leerem Text – als Kontext für die
+ * Tagesgenerierung. Reihenfolge: Montag bis Freitag. Existiert keine solche
+ * Vorwoche oder enthält sie keine nicht-leeren Tagesabsätze, wird eine leere
+ * Liste zurückgegeben.
+ */
+export function previousWeekDays(
+  weeks: WeekJournal[],
+  kw: number,
+  jahr: number,
+): { weekday: Weekday; text: string }[] {
+  const rang = (w: { kw: number; jahr: number }) => w.jahr * 100 + w.kw;
+  const grenze = jahr * 100 + kw;
+
+  // Genau die eine Woche mit grösstem Rang unterhalb der Grenze (kleinste
+  // chronologische Differenz, nie die aktuelle Woche selbst).
+  const vorwoche = weeks
+    .filter((w) => rang(w) < grenze)
+    .sort((a, b) => rang(b) - rang(a))[0]; // absteigend = nächste zuerst
+
+  if (!vorwoche) return [];
+
+  // Nicht-leere Tagesabsätze in der bestehenden days-Reihenfolge (Mo–Fr).
+  return vorwoche.days
+    .filter((d) => d.text.trim() !== "")
+    .map((d) => ({ weekday: d.weekday, text: d.text }));
 }

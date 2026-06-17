@@ -1,12 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-sbb-red: #eb0000;
-  --color-sbb-red-hover: #c50000;
-  --color-page: #f8f8f8;
-  --color-panel: #ffffff;
-  --color-ink: #222222;
-  --color-line: #e0e0e0;
+  /* Flächen / Neutraltöne */
+  --color-page: #f4f5f7; /* App-Hintergrund */
+  --color-panel: #ffffff; /* Karten-/Panel-Fläche */
+  --color-panel-muted: #f0f1f4; /* dezente Füllung (z. B. Stream-Vorschau) */
+  --color-ink: #1c2024; /* Primärtext */
+  --color-line: #dfe2e7; /* Rahmen/Trennlinien */
+
+  /* Primär-/Akzentfarbe (markenneutral, NICHT SBB-Rot) */
+  --color-primary: #2f5fe0; /* primäre Aktionen */
+  --color-primary-hover: #2547b0; /* Hover */
+  --color-on-primary: #ffffff; /* Text auf primär */
+
+  /* Semantische Statusfarbe für Fehler (generisch, keine Markenfarbe) */
+  --color-danger: #c8321f;
+  --color-danger-hover: #a5281a;
+
+  /* Fokusindikator */
+  --color-focus: #2f5fe0;
+
+  /* Eckenradien (semantisch) */
+  --radius-control: 0.5rem; /* Buttons, Eingaben → rounded-control */
+  --radius-card: 0.75rem; /* Karten/Panels → rounded-card */
+
+  /* Lesbreite für Fliesstext-Editor */
+  --container-measure: 75ch; /* → max-w-measure (Requirement 5.1) */
 
   --font-sans:
     system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;

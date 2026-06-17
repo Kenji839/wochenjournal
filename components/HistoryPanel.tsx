@@ -27,8 +27,8 @@ export default function HistoryPanel({
   onDelete,
 }: HistoryPanelProps) {
   return (
-    <div className="rounded-lg border border-line bg-panel p-4 shadow-sm">
-      <h2 className="mb-3 text-sm font-semibold text-ink">Verlauf</h2>
+    <div className="rounded-card border border-line bg-panel p-5 shadow-sm">
+      <h2 className="mb-3 text-base font-semibold text-ink">Verlauf</h2>
 
       {weeks.length === 0 ? (
         <p className="text-sm text-ink/60">Noch keine Einträge.</p>
@@ -37,16 +37,16 @@ export default function HistoryPanel({
           {weeks.map((week) => (
             <li
               key={week.id}
-              className={`flex items-center justify-between rounded-md border px-3 py-2 ${
+              className={`flex items-center justify-between rounded-control border px-3 py-2 ${
                 week.id === activeId
-                  ? "border-sbb-red bg-sbb-red/5"
+                  ? "border-primary bg-primary/5"
                   : "border-line bg-white"
               }`}
             >
               <button
                 type="button"
                 onClick={() => onSelect(week)}
-                className="flex flex-1 flex-col items-start text-left"
+                className="flex flex-1 flex-col items-start rounded-control text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
               >
                 <span className="text-sm font-medium text-ink">
                   KW {week.kw} / {week.jahr}
@@ -59,7 +59,7 @@ export default function HistoryPanel({
                 type="button"
                 onClick={() => onDelete(week.id)}
                 aria-label={`KW ${week.kw} / ${week.jahr} löschen`}
-                className="ml-2 rounded-md px-2 py-1 text-ink/50 hover:bg-sbb-red/10 hover:text-sbb-red"
+                className="ml-2 rounded-control px-2 py-1 text-ink/50 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
               >
                 ✕
               </button>

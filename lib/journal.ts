@@ -35,3 +35,58 @@ export function composeJournal(week: WeekJournal): string {
 
   return teile.join("\n\n");
 }
+
+/** True, wenn eine nicht-leere manuelle Überschreibung vorliegt. */
+export function hasManualOverride(week: WeekJournal): boolean {
+  return typeof week.journalText === "string" && week.journalText.trim() !== "";
+}
+
+/**
+ * Der aktuell anzuzeigende Gesamtjournal-Text: die Überschreibung, falls
+ * vorhanden, sonst der aus den Feldern abgeleitete Text. Einzige Quelle für
+ * Vorschau, Editor, Kopieren und Download.
+ */
+export function displayedJournal(week: WeekJournal): string {
+  return hasManualOverride(week) ? week.journalText! : composeJournal(week);
+}
+
+/**
+ * Setzt eine manuelle Überschreibung aus dem Editor-Wert. Besteht der Wert nach
+ * Trim nur aus Leerzeichen, wird die Überschreibung entfernt (zurück zum
+ * abgeleiteten Text). Der Wert wird sonst unverändert (inkl. Whitespace) abgelegt.
+ */
+export function withJournalText(week: WeekJournal, value: string): WeekJournal {
+  if (value.trim() === "") return withoutJournalText(week);
+  return { ...week, journalText: value };
+}
+
+/** Entfernt die manuelle Überschreibung (Neu-Zusammensetzen aus den Feldern). */
+export function withoutJournalText(week: WeekJournal): WeekJournal {
+  if (week.journalText === undefined) return week;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { journalText: _drop, ...rest } = week;
+  return rest;
+}
+
+/**
+ * Prüft, ob die Woche ausser Header/Platzhaltern keinen Inhalt hat
+ * (keine Überschreibung, kein Tagesabsatz, keine Reflexion). Für die
+ * Leer-Prüfung von Export und KI-Überarbeitung.
+ */
+export function istInhaltsleer(week: WeekJournal): boolean {
+  return (
+    !hasManualOverride(week) &&
+    !week.days.some((d) => d.text.trim() !== "") &&
+    week.reflexion.trim() === ""
+  );
+}
+
+/**
+ * Dateiname für den Download: KW zweistellig mit führender Null,
+ * Jahr vierstellig: arbeitsjournal-kw{KW}-{JAHR}.txt
+ */
+export function journalFileName(week: WeekJournal): string {
+  const kw = String(week.kw).padStart(2, "0");
+  const jahr = String(week.jahr).padStart(4, "0");
+  return `arbeitsjournal-kw${kw}-${jahr}.txt`;
+}
