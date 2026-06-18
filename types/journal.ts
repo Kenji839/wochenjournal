@@ -93,3 +93,21 @@ export interface ConfluenceUploadResponse {
   /** Kennzeichnet, ob die Seite neu erstellt oder aktualisiert wurde. */
   action: "created" | "updated";
 }
+
+/** Englische Wochentags-Schlüssel der Git_Summary_API (Mo–Fr). */
+export type GitDay =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday";
+
+/** Antwortform von GET /api/git-summary. */
+export interface GitSummary {
+  /** Unveränderte Eingabe-Kalenderwoche (1–53). */
+  week: number;
+  /** Unverändertes Eingabe-Jahr (2000–2100). */
+  year: number;
+  /** Genau fünf Schlüssel monday–friday mit Listen von Commit-Titeln. */
+  days: Record<GitDay, string[]>;
+}

@@ -7,6 +7,7 @@ import JournalPreview from "@/components/JournalPreview";
 import ReflectionPanel from "@/components/ReflectionPanel";
 import WeekSelector from "@/components/WeekSelector";
 import { getCurrentWeek } from "@/lib/date";
+import { appendKeywords } from "@/lib/git-keywords";
 import {
   displayedJournal,
   hasManualOverride,
@@ -22,7 +23,7 @@ import {
   previousWeeks,
   saveWeek,
 } from "@/lib/storage";
-import type { Weekday, WeekJournal } from "@/types/journal";
+import type { GitDay, GitSummary, Weekday, WeekJournal } from "@/types/journal";
 import { WEEKDAYS } from "@/types/journal";
 
 type Generating =
@@ -32,6 +33,15 @@ type Generating =
   | null;
 
 const FEHLERMELDUNG = "Generierung fehlgeschlagen. Bitte versuche es erneut.";
+
+/** Mapping der deutschen Wochentage auf die englischen Git_Summary_API-Schluessel. */
+const WEEKDAY_TO_GITDAY: Record<Weekday, GitDay> = {
+  montag: "monday",
+  dienstag: "tuesday",
+  mittwoch: "wednesday",
+  donnerstag: "thursday",
+  freitag: "friday",
+};
 
 function emptyWeek(kw: number, jahr: number): WeekJournal {
   return {
@@ -51,6 +61,7 @@ export default function Home() {
     emptyWeek(initial.kw, initial.jahr),
   );
   const [generating, setGenerating] = useState<Generating>(null);
+  const [loadingGit, setLoadingGit] = useState<Weekday | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Beim Mount aus localStorage laden und aktive Woche bestimmen.
@@ -192,6 +203,44 @@ export default function Home() {
     }
   }
 
+  async function loadFromGit(weekday: Weekday) {
+    if (busy || loadingGit !== null) return;
+
+    const label = WEEKDAYS.find((w) => w.key === weekday)?.label ?? "Tag";
+
+    setError(null);
+    setLoadingGit(weekday);
+    try {
+      const res = await fetch(
+        `/api/git-summary?week=${week.kw}&year=${week.jahr}`,
+      );
+      // Bei Fehlerstatus das Stichwort-Feld unveraendert lassen und Feedback geben.
+      if (!res.ok) {
+        setError(
+          `Git-Stichworte konnten nicht geladen werden (Status ${res.status}).`,
+        );
+        return;
+      }
+
+      const data: GitSummary = await res.json();
+      const titles = data.days[WEEKDAY_TO_GITDAY[weekday]] ?? [];
+      // Leere oder fehlende Liste: Feld unveraendert lassen und Feedback geben.
+      if (titles.length === 0) {
+        setError(`Keine Git-Commits für ${label} (KW ${week.kw}) gefunden.`);
+        return;
+      }
+
+      const existing =
+        week.days.find((d) => d.weekday === weekday)?.stichworte ?? "";
+      setStichworte(weekday, appendKeywords(existing, titles));
+    } catch {
+      // Fehler beim Laden/Einfuegen: bestehenden Inhalt unveraendert lassen.
+      setError("Git-Stichworte konnten nicht geladen werden.");
+    } finally {
+      setLoadingGit(null);
+    }
+  }
+
   async function generateReflection() {
     const days = week.days
       .filter((d) => d.text.trim() !== "")
@@ -330,9 +379,11 @@ export default function Home() {
                     generating?.type === "day" && generating.weekday === key
                   }
                   busy={busy}
+                  loadingGit={loadingGit === key}
                   onStichworteChange={(v) => setStichworte(key, v)}
                   onTextChange={(v) => setDayText(key, v)}
                   onGenerate={() => generateDay(key)}
+                  onLoadFromGit={() => loadFromGit(key)}
                 />
               );
             })}
