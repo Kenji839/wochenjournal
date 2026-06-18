@@ -11,6 +11,8 @@ interface DayCardProps {
   busy: boolean;
   /** Für diesen Tag läuft gerade ein Git-Ladevorgang. */
   loadingGit: boolean;
+  /** Dieser Tag ist der heutige Wochentag → hervorheben. */
+  isToday: boolean;
   onStichworteChange: (value: string) => void;
   onTextChange: (value: string) => void;
   onGenerate: () => void;
@@ -24,6 +26,7 @@ export default function DayCard({
   streaming,
   busy,
   loadingGit,
+  isToday,
   onStichworteChange,
   onTextChange,
   onGenerate,
@@ -32,9 +35,22 @@ export default function DayCard({
   const canGenerate = day.stichworte.trim() !== "" && !busy;
 
   return (
-    <div className="flex h-full flex-col rounded-card border border-line bg-panel p-5 shadow-sm">
+    <div
+      className={`flex h-full flex-col rounded-card border bg-panel p-5 shadow-sm ${
+        isToday
+          ? "border-primary ring-2 ring-primary/40"
+          : "border-line"
+      }`}
+    >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-ink">{label}</h3>
+        <h3 className="flex items-center gap-2 text-base font-semibold text-ink">
+          {label}
+          {isToday && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-on-primary">
+              Heute
+            </span>
+          )}
+        </h3>
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"

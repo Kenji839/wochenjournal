@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DayCard from "@/components/DayCard";
 import HistoryPanel from "@/components/HistoryPanel";
 import JournalPreview from "@/components/JournalPreview";
@@ -64,6 +64,18 @@ export default function Home() {
   const [loadingGit, setLoadingGit] = useState<Weekday | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Scroll-Container der Tageskarten und Referenz auf die heutige Karte, um
+  // diese beim Laden der aktuellen Woche horizontal in die Mitte zu holen.
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const todayCardRef = useRef<HTMLDivElement>(null);
+
+  // Heutiger Wochentag als Weekday-Key (Mo–Fr); am Wochenende null.
+  const todayWeekday = useMemo<Weekday | null>(() => {
+    const dayNum = new Date().getDay(); // 0 = Sonntag … 6 = Samstag
+    if (dayNum < 1 || dayNum > 5) return null;
+    return WEEKDAYS[dayNum - 1].key;
+  }, []);
+
   // Beim Mount aus localStorage laden und aktive Woche bestimmen.
   // Der Effekt läuft erst nach der Hydration; Server und Client rendern initial
   // identisch die leere Woche, daher kein Hydration-Mismatch. Das einmalige
@@ -77,6 +89,25 @@ export default function Home() {
     if (existing) setWeek(existing);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Heutige Tageskarte horizontal zentrieren, wenn die aktuelle Woche angezeigt
+  // wird. Randtage (Mo/Di bzw. Do/Fr) werden durch scrollTo automatisch an den
+  // Anfang bzw. das Ende geklemmt. Nur relevant auf Breakpoints mit Scroll-Reihe.
+  useEffect(() => {
+    if (!todayWeekday) return;
+    const aktuell = getCurrentWeek();
+    if (week.kw !== aktuell.kw || week.jahr !== aktuell.jahr) return;
+
+    const container = cardScrollRef.current;
+    const card = todayCardRef.current;
+    if (!container || !card) return;
+
+    const cRect = container.getBoundingClientRect();
+    const tRect = card.getBoundingClientRect();
+    const delta =
+      tRect.left - cRect.left - (container.clientWidth - card.clientWidth) / 2;
+    container.scrollTo({ left: container.scrollLeft + delta, behavior: "smooth" });
+  }, [todayWeekday, week.kw, week.jahr]);
 
   const busy = generating !== null;
 
@@ -288,6 +319,11 @@ export default function Home() {
   const hatTagesabsatz = week.days.some((d) => d.text.trim() !== "");
   const previousCount = previousWeeks(weeks, week.kw, week.jahr).length;
 
+  // Heutige Karte nur hervorheben, wenn die aktuelle Kalenderwoche angezeigt wird.
+  const aktuelleWoche = getCurrentWeek();
+  const zeigtAktuelleWoche =
+    week.kw === aktuelleWoche.kw && week.jahr === aktuelleWoche.jahr;
+
   /** Speichert eine manuelle Überschreibung des Gesamtjournals aus dem Editor. */
   function setJournalText(value: string) {
     commitWeek(withJournalText(week, value));
@@ -367,24 +403,33 @@ export default function Home() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[repeat(5,minmax(min-content,1fr))]">
+          <div
+            ref={cardScrollRef}
+            className="flex flex-col gap-4 lg:flex-row lg:overflow-x-auto lg:pb-2"
+          >
             {WEEKDAYS.map(({ key, label }) => {
               const day = week.days.find((d) => d.weekday === key)!;
               return (
-                <DayCard
+                <div
                   key={key}
-                  day={day}
-                  label={label}
-                  streaming={
-                    generating?.type === "day" && generating.weekday === key
-                  }
-                  busy={busy}
-                  loadingGit={loadingGit === key}
-                  onStichworteChange={(v) => setStichworte(key, v)}
-                  onTextChange={(v) => setDayText(key, v)}
-                  onGenerate={() => generateDay(key)}
-                  onLoadFromGit={() => loadFromGit(key)}
-                />
+                  ref={key === todayWeekday ? todayCardRef : undefined}
+                  className="lg:w-[28rem] lg:shrink-0"
+                >
+                  <DayCard
+                    day={day}
+                    label={label}
+                    streaming={
+                      generating?.type === "day" && generating.weekday === key
+                    }
+                    busy={busy}
+                    loadingGit={loadingGit === key}
+                    isToday={zeigtAktuelleWoche && key === todayWeekday}
+                    onStichworteChange={(v) => setStichworte(key, v)}
+                    onTextChange={(v) => setDayText(key, v)}
+                    onGenerate={() => generateDay(key)}
+                    onLoadFromGit={() => loadFromGit(key)}
+                  />
+                </div>
               );
             })}
           </div>
