@@ -28,6 +28,7 @@ Anforderungen an die Ausgabe:
 
 Inhaltliche Vorgaben:
 - Inhaltliche Grundlage des Absatzes sind ausschliesslich die Stichworte des aktuellen Tages.
+- Falls die Stichworte Zeitangaben enthalten (z. B. Uhrzeiten wie "08:30"), berücksichtige die zeitliche Abfolge des Arbeitstags und gib die Tätigkeiten in chronologischer Reihenfolge wieder; die genauen Uhrzeiten müssen dabei nicht wörtlich genannt werden.
 - Wenn Kontext aus der Vorwoche mitgegeben wird, nutze ihn NUR für einen stimmigen inhaltlichen Anschluss und Übergang sowie zur Vermeidung von Wiederholungen. Erfinde keine Details aus der Vorwoche und wiederhole sie nicht wörtlich; gib den Vorwochen-Kontext nicht als Inhalt des aktuellen Tagesabsatzes wieder.
 
 ${REGELN}`;

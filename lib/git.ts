@@ -26,20 +26,20 @@ const GIT_DAYS: GitDay[] = [
 
 /**
  * Parst die rohe git-log-Ausgabe (eine Zeile pro Commit:
- * "<author>\x1f<YYYY-MM-DD>\x1f<subject>") in strukturierte Commits.
+ * "<author>\x1f<YYYY-MM-DD>\x1f<HH:MM>\x1f<subject>") in strukturierte Commits.
  * Reine Funktion – ohne git-Aufruf, damit isoliert testbar.
  *
  * Leere Zeilen werden ignoriert.
  */
 export function parseGitLog(
   raw: string,
-): { author: string; date: string; subject: string }[] {
+): { author: string; date: string; time: string; subject: string }[] {
   return raw
     .split("\n")
     .filter((zeile) => zeile.length > 0)
     .map((zeile) => {
-      const [author, date, subject] = zeile.split(FELD);
-      return { author, date, subject };
+      const [author, date, time, subject] = zeile.split(FELD);
+      return { author, date, time, subject };
     });
 }
 
@@ -55,14 +55,17 @@ export function parseGitLog(
  * - Die Zuordnung erfolgt per exaktem Datums-String-Vergleich gegen
  *   `workdays`; Sa/So und Daten ausserhalb der Woche matchen keinen Tag und
  *   entfallen.
- * - Identische Titel je Tag werden dedupliziert (erstes Vorkommen bleibt).
+ * - Jeder Titel wird mit der Commit-Uhrzeit als Präfix ("HH:MM Subject")
+ *   ausgegeben, damit die zeitliche Abfolge des Tages erkennbar bleibt.
+ * - Identische Zeilen je Tag werden dedupliziert (erstes Vorkommen bleibt).
  *   So erscheint ein Commit nicht doppelt, wenn er nach Rebase-/Squash-/
- *   Cherry-pick-Merge mit neuer SHA zusätzlich auf einem anderen Branch liegt.
+ *   Cherry-pick-Merge mit neuer SHA zusätzlich auf einem anderen Branch liegt
+ *   (Author-Zeit und Subject bleiben dabei gleich).
  * - Die Reihenfolge innerhalb eines Tages entspricht der Eingabereihenfolge
  *   (chronologisch, da `--reverse` upstream); es wird nicht neu sortiert.
  */
 export function groupByWeekday(
-  commits: { author: string; date: string; subject: string }[],
+  commits: { author: string; date: string; time: string; subject: string }[],
   workdays: { day: GitDay; date: string }[],
   configuredAuthor: string | null,
 ): Record<GitDay, string[]> {
@@ -73,7 +76,7 @@ export function groupByWeekday(
 
   // Datum → Wochentags-Schlüssel für den exakten String-Vergleich.
   const dateToDay = new Map(workdays.map(({ day, date }) => [date, day]));
-  // Bereits aufgenommene Titel je Tag, um Duplikate zu vermeiden.
+  // Bereits aufgenommene Zeilen je Tag, um Duplikate zu vermeiden.
   const seen = new Map<GitDay, Set<string>>(
     GIT_DAYS.map((tag) => [tag, new Set<string>()]),
   );
@@ -92,13 +95,17 @@ export function groupByWeekday(
     if (tag === undefined) {
       continue;
     }
-    // Duplikate (gleicher Titel am selben Tag) überspringen.
+    // Uhrzeit als Präfix voranstellen, sofern vorhanden.
+    const titel = commit.time
+      ? `${commit.time} ${commit.subject}`
+      : commit.subject;
+    // Duplikate (gleiche Zeile am selben Tag) überspringen.
     const bekannt = seen.get(tag)!;
-    if (bekannt.has(commit.subject)) {
+    if (bekannt.has(titel)) {
       continue;
     }
-    bekannt.add(commit.subject);
-    result[tag].push(commit.subject);
+    bekannt.add(titel);
+    result[tag].push(titel);
   }
 
   return result;
@@ -160,6 +167,8 @@ export function readGitSummary(
     const until = naechsterTag(workdays[4].date); // Samstag (Tag nach Freitag)
 
     // git log ohne Shell, variable Werte als separate Argumente.
+    // %as = Author-Datum kurz (YYYY-MM-DD) für die Tageszuordnung,
+    // %ad mit --date=format:%H:%M = Uhrzeit, %s = Subject.
     const raw = execFileSync(
       "git",
       [
@@ -169,8 +178,8 @@ export function readGitSummary(
         "--no-merges",
         `--since=${since}`,
         `--until=${until}`,
-        `--pretty=format:%an${FELD}%ad${FELD}%s`,
-        "--date=short",
+        `--pretty=format:%an${FELD}%as${FELD}%ad${FELD}%s`,
+        "--date=format:%H:%M",
       ],
       { cwd, encoding: "utf8" },
     );
