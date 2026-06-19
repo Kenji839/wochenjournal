@@ -32,10 +32,6 @@ in Schweizer Hochdeutsch (kein „ß", immer „ss").
 ## Ziel-Journalformat (unverändert, muss erhalten bleiben)
 
 ```
-**Arbeitsjournal – KW {KW} / {JAHR}**
-Lernender: Timo
-Betrieb: Appbakery / SBB, Bern
-Ausbildungsjahr: 3. Lehrjahr
 
 **Was habe ich diese Woche gemacht?**
 Montag: …

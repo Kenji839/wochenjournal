@@ -180,10 +180,6 @@ Zwei feste System-Prompts plus Builder.
   zusammen:
 
   ```
-  **Arbeitsjournal – KW {kw} / {jahr}**
-  Lernender: Timo
-  Betrieb: Appbakery / SBB, Bern
-  Ausbildungsjahr: 3. Lehrjahr
 
   **Was habe ich diese Woche gemacht?**
   Montag: {text|–}

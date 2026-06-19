@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Wochenjournal-Generator",
-  description: "Arbeitsjournal-Generator – Appbakery / SBB, Lehrjahr 3",
+  description: "Wochenjournal-Generator – Appbakery / SBB, Lehrjahr 3",
 };
 
 export default function RootLayout({
