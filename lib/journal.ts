@@ -1,5 +1,28 @@
-import type { WeekJournal } from "@/types/journal";
+import type { Attachment, WeekJournal } from "@/types/journal";
 import { WEEKDAYS } from "@/types/journal";
+
+/**
+ * Gibt einen Tagesanhang als Zeile(n) für den Textexport aus:
+ * - Link: "Anzeigetext (url)", falls ein vom URL abweichender Anzeigetext
+ *   vorliegt, sonst nur die "url".
+ * - Code: optionale Sprachzeile ("Code (ts):") vorangestellt, danach der
+ *   Quelltext unverändert (inkl. Zeilenumbrüchen und Einrückungen).
+ * - Bild: erkennbarer Platzhalter "[Bild: <Bildunterschrift|Dateiname>]".
+ */
+function renderAttachment(attachment: Attachment): string {
+  switch (attachment.type) {
+    case "link":
+      return attachment.displayText && attachment.displayText !== attachment.url
+        ? `${attachment.displayText} (${attachment.url})`
+        : attachment.url;
+    case "code":
+      return attachment.language
+        ? `Code (${attachment.language}):\n${attachment.source}`
+        : attachment.source;
+    case "image":
+      return `[Bild: ${attachment.caption ? attachment.caption : attachment.filename}]`;
+  }
+}
 
 /**
  * Setzt aus einer Woche den vollständigen Journaltext zusammen:
@@ -12,7 +35,9 @@ export function composeJournal(week: WeekJournal): string {
   const tageZeilen = WEEKDAYS.map(({ key, label }) => {
     const eintrag = week.days.find((d) => d.weekday === key);
     const text = eintrag?.text.trim();
-    return `${label}: ${text ? text : "–"}`;
+    const zeile = `${label}: ${text ? text : "–"}`;
+    const anhaenge = (eintrag?.attachments ?? []).map(renderAttachment);
+    return [zeile, ...anhaenge].join("\n");
   }).join("\n");
 
   teile.push(`**Was habe ich diese Woche gemacht?**\n${tageZeilen}`);

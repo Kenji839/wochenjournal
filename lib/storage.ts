@@ -36,17 +36,32 @@ function persist(weeks: WeekJournal[]): boolean {
 /**
  * Fügt eine Woche ein oder aktualisiert die bestehende (gleiche id), setzt
  * updatedAt, sortiert nach updatedAt absteigend und begrenzt auf MAX_WEEKS.
- * Gibt die aktualisierte Liste zurück. Bei einem Schreibfehler bleibt der zuvor
- * gespeicherte Stand unverändert und wird zurückgegeben.
+ * Gibt zusätzlich zurück, ob der Schreibvorgang gelang. Bei einem Schreibfehler
+ * (z. B. Quota) bleibt der zuvor gespeicherte Stand unverändert (Rollback) und
+ * die unveränderte Vorliste wird mit `persisted: false` zurückgegeben.
  */
-export function saveWeek(week: WeekJournal): WeekJournal[] {
+export function saveWeekChecked(week: WeekJournal): {
+  weeks: WeekJournal[];
+  persisted: boolean;
+} {
   const vorher = loadWeeks();
   const updated: WeekJournal = { ...week, updatedAt: new Date().toISOString() };
   const weeks = [updated, ...vorher.filter((w) => w.id !== updated.id)]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, MAX_WEEKS);
   // Bei Schreibfehler bleibt der zuvor gespeicherte Zustand unverändert.
-  return persist(weeks) ? weeks : vorher;
+  const persisted = persist(weeks);
+  return persisted ? { weeks, persisted } : { weeks: vorher, persisted };
+}
+
+/**
+ * Fügt eine Woche ein oder aktualisiert die bestehende (gleiche id), setzt
+ * updatedAt, sortiert nach updatedAt absteigend und begrenzt auf MAX_WEEKS.
+ * Gibt die aktualisierte Liste zurück. Bei einem Schreibfehler bleibt der zuvor
+ * gespeicherte Stand unverändert und wird zurückgegeben.
+ */
+export function saveWeek(week: WeekJournal): WeekJournal[] {
+  return saveWeekChecked(week).weeks;
 }
 
 /**

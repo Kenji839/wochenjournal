@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { journalFileName } from "@/lib/journal";
-import type { ConfluenceUploadResponse, WeekJournal } from "@/types/journal";
+import type {
+  ConfluenceUploadRequest,
+  ConfluenceUploadResponse,
+  WeekJournal,
+} from "@/types/journal";
 
 interface JournalPreviewProps {
   week: WeekJournal;
@@ -72,7 +76,9 @@ export default function JournalPreview({
           journalText: displayedText,
           kw: week.kw,
           jahr: week.jahr,
-        }),
+          days: week.days,
+          reflexion: week.reflexion,
+        } satisfies ConfluenceUploadRequest),
       });
       if (!res.ok) {
         setStatus({ kind: "error" });

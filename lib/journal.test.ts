@@ -8,10 +8,97 @@ import {
   withJournalText,
   withoutJournalText,
 } from "@/lib/journal";
-import type { DayEntry, WeekJournal } from "@/types/journal";
+import type {
+  Attachment,
+  CodeAttachment,
+  DayEntry,
+  ImageAttachment,
+  LinkAttachment,
+  WeekJournal,
+} from "@/types/journal";
 import { WEEKDAYS } from "@/types/journal";
 
 const RUNS = 100;
+
+/** Arbitrary für einen mehrzeiligen Quelltext (inkl. Zeilenumbrüchen/Einrückungen). */
+const multilineArbitrary: fc.Arbitrary<string> = fc
+  .array(fc.string(), { maxLength: 5 })
+  .map((lines) => lines.join("\n"));
+
+/** Erlaubte Bild-MIME-Typen gemäss Datenmodell. */
+const mimeTypeArbitrary: fc.Arbitrary<ImageAttachment["mimeType"]> =
+  fc.constantFrom("image/png", "image/jpeg", "image/gif", "image/webp");
+
+/** Link-Anhang: URL (http/https) und optionaler Anzeigetext. */
+const linkAttachmentArbitrary: fc.Arbitrary<LinkAttachment> = fc
+  .record({
+    id: fc.uuid(),
+    url: fc.webUrl(),
+    displayText: fc.option(fc.string(), { nil: undefined }),
+  })
+  .map(({ id, url, displayText }) => {
+    const link: LinkAttachment = { id, type: "link", url };
+    if (displayText !== undefined) link.displayText = displayText;
+    return link;
+  });
+
+/** Code-Anhang: unveränderter Quelltext und optionale Sprachangabe. */
+const codeAttachmentArbitrary: fc.Arbitrary<CodeAttachment> = fc
+  .record({
+    id: fc.uuid(),
+    source: multilineArbitrary,
+    language: fc.option(fc.string({ minLength: 1, maxLength: 30 }), {
+      nil: undefined,
+    }),
+  })
+  .map(({ id, source, language }) => {
+    const code: CodeAttachment = { id, type: "code", source };
+    if (language !== undefined) code.language = language;
+    return code;
+  });
+
+/** Bild-Anhang: Base64-Daten, MIME-Typ, Dateiname und optionale Bildunterschrift. */
+const imageAttachmentArbitrary: fc.Arbitrary<ImageAttachment> = fc
+  .record({
+    id: fc.uuid(),
+    data: fc.base64String(),
+    mimeType: mimeTypeArbitrary,
+    filename: fc.string(),
+    caption: fc.option(fc.string(), { nil: undefined }),
+  })
+  .map(({ id, data, mimeType, filename, caption }) => {
+    const image: ImageAttachment = { id, type: "image", data, mimeType, filename };
+    if (caption !== undefined) image.caption = caption;
+    return image;
+  });
+
+/** Beliebiger Tagesanhang (Link/Code/Bild). */
+const attachmentArbitrary: fc.Arbitrary<Attachment> = fc.oneof(
+  linkAttachmentArbitrary,
+  codeAttachmentArbitrary,
+  imageAttachmentArbitrary,
+);
+
+/**
+ * Test-lokale Wiedergabe eines Anhangs gemäss Export-Kontrakt (Design):
+ * - Link: "Anzeigetext (url)", falls ein vom URL abweichender Anzeigetext
+ *   vorhanden ist, sonst nur "url".
+ * - Code: optionale Sprachzeile "Code (lang):" vorangestellt, danach der
+ *   Quelltext unverändert.
+ * - Bild: Platzhalter "[Bild: <Bildunterschrift|Dateiname>]".
+ */
+function renderExpected(a: Attachment): string {
+  switch (a.type) {
+    case "link":
+      return a.displayText && a.displayText !== a.url
+        ? `${a.displayText} (${a.url})`
+        : a.url;
+    case "code":
+      return a.language ? `Code (${a.language}):\n${a.source}` : a.source;
+    case "image":
+      return `[Bild: ${a.caption ? a.caption : a.filename}]`;
+  }
+}
 
 /** Arbitrary für einen einzelnen Tageseintrag eines gegebenen Wochentags. */
 function dayArbitrary(weekday: DayEntry["weekday"]): fc.Arbitrary<DayEntry> {
@@ -19,6 +106,8 @@ function dayArbitrary(weekday: DayEntry["weekday"]): fc.Arbitrary<DayEntry> {
     weekday: fc.constant(weekday),
     stichworte: fc.string(),
     text: fc.string(),
+    // Tagesanhänge in Reihenfolge (0–10) für Komposition/Export-Properties.
+    attachments: fc.array(attachmentArbitrary, { maxLength: 10 }),
   });
 }
 
@@ -100,6 +189,81 @@ describe("journal pure logic – property based", () => {
 
         expect(name).toBe(`arbeitsjournal-kw${kw}-${jahr}.txt`);
         expect(name).toMatch(/^arbeitsjournal-kw\d{2}-\d{4}\.txt$/);
+      }),
+      { numRuns: RUNS },
+    );
+  });
+
+  // Feature: day-attachments, Property 7: Komposition gibt Anhänge nach dem Tagesabsatz in Reihenfolge aus
+  // Validates: Requirements 6.1, 6.6
+  it("Property 7: Anhänge erscheinen nach dem Tagesabsatz in gespeicherter Reihenfolge, ohne Platzhalter bei leeren Tagen", () => {
+    fc.assert(
+      fc.property(weekArbitrary, (week) => {
+        const out = composeJournal(week);
+
+        // Erwarteter Tagesblock: je Tag die Tageszeile, gefolgt von den
+        // Anhängen in gespeicherter Reihenfolge. Tage ohne Anhänge tragen
+        // ausschliesslich ihre Tageszeile bei (kein Platzhalter).
+        const daysBlock = WEEKDAYS.map(({ key, label }) => {
+          const eintrag = week.days.find((d) => d.weekday === key);
+          const text = eintrag?.text.trim();
+          const zeile = `${label}: ${text ? text : "–"}`;
+          const anhaenge = (eintrag?.attachments ?? []).map(renderExpected);
+          return [zeile, ...anhaenge].join("\n");
+        }).join("\n");
+
+        // Der zusammenhängende Block muss exakt so vorkommen: Das beweist die
+        // Platzierung nach dem Absatz, die gespeicherte Reihenfolge und – da der
+        // Block für leere Tage nur die Tageszeile enthält – dass kein Platzhalter
+        // eingefügt wird (Requirement 6.6).
+        expect(out).toContain(daysBlock);
+      }),
+      { numRuns: RUNS },
+    );
+  });
+
+  // Feature: day-attachments, Property 8: Export-Formatierung je Anhangtyp
+  // Validates: Requirements 6.2, 6.3, 6.4, 6.5, 2.5
+  it("Property 8: Jeder Anhang wird typgerecht im Export formatiert", () => {
+    fc.assert(
+      fc.property(weekArbitrary, (week) => {
+        const out = composeJournal(week);
+
+        for (const day of week.days) {
+          for (const anhang of day.attachments ?? []) {
+            switch (anhang.type) {
+              case "link": {
+                // Anzeigetext (url), falls abweichender Anzeigetext vorhanden,
+                // sonst nur die url (Requirements 6.2, 6.3, 2.5).
+                const erwartet =
+                  anhang.displayText && anhang.displayText !== anhang.url
+                    ? `${anhang.displayText} (${anhang.url})`
+                    : anhang.url;
+                expect(out).toContain(erwartet);
+                break;
+              }
+              case "code": {
+                // Quelltext zeichengleich als Teilstring; bei Sprachangabe eine
+                // vorangestellte Sprachzeile (Requirement 6.4, 3.5).
+                expect(out).toContain(anhang.source);
+                if (anhang.language) {
+                  expect(out).toContain(
+                    `Code (${anhang.language}):\n${anhang.source}`,
+                  );
+                }
+                break;
+              }
+              case "image": {
+                // Erkennbarer Platzhalter mit Bildunterschrift, sonst Dateiname
+                // (Requirement 6.5).
+                expect(out).toContain(
+                  `[Bild: ${anhang.caption ? anhang.caption : anhang.filename}]`,
+                );
+                break;
+              }
+            }
+          }
+        }
       }),
       { numRuns: RUNS },
     );
