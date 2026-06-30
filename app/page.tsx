@@ -6,6 +6,10 @@ import HistoryPanel from "@/components/HistoryPanel";
 import JournalPreview from "@/components/JournalPreview";
 import ReflectionPanel from "@/components/ReflectionPanel";
 import WeekSelector from "@/components/WeekSelector";
+import {
+  addAttachment,
+  removeAttachment,
+} from "@/lib/attachments";
 import { getCurrentWeek } from "@/lib/date";
 import { appendKeywords } from "@/lib/git-keywords";
 import {
@@ -21,9 +25,9 @@ import {
   loadWeeks,
   previousWeekDays,
   previousWeeks,
-  saveWeek,
+  saveWeekChecked,
 } from "@/lib/storage";
-import type { GitDay, GitSummary, Weekday, WeekJournal } from "@/types/journal";
+import type { Attachment, GitDay, GitSummary, Weekday, WeekJournal } from "@/types/journal";
 import { WEEKDAYS } from "@/types/journal";
 
 type Generating =
@@ -63,6 +67,7 @@ export default function Home() {
   const [generating, setGenerating] = useState<Generating>(null);
   const [loadingGit, setLoadingGit] = useState<Weekday | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Scroll-Container der Tageskarten und Referenz auf die heutige Karte, um
   // diese beim Laden der aktuellen Woche horizontal in die Mitte zu holen.
@@ -109,13 +114,17 @@ export default function Home() {
     container.scrollTo({ left: container.scrollLeft + delta, behavior: "smooth" });
   }, [todayWeekday, week.kw, week.jahr]);
 
-  const busy = generating !== null;
+  const busy = generating !== null || uploading;
 
-  /** Schreibt die Woche in den State und persistiert sie. */
+  /** Schreibt die Woche in den State und persistiert sie. Bei Quota-Fehler State nicht ändern und Hinweis anzeigen. */
   function commitWeek(next: WeekJournal) {
-    const list = saveWeek(next);
-    setWeeks(list);
-    setWeek(list.find((w) => w.id === next.id) ?? next);
+    const result = saveWeekChecked(next);
+    if (!result.persisted) {
+      setError("Die Änderung konnte wegen erreichter Speicherbegrenzung nicht gespeichert werden.");
+      return;
+    }
+    setWeeks(result.weeks);
+    setWeek(result.weeks.find((w) => w.id === next.id) ?? next);
   }
 
   function selectWeek(kw: number, jahr: number) {
@@ -364,6 +373,35 @@ export default function Home() {
     }
   }
 
+  /** Fügt einen Anhang einem Tag hinzu und persistiert. */
+  function handleAddAttachment(weekday: Weekday, attachment: Attachment) {
+    const day = week.days.find((d) => d.weekday === weekday);
+    if (!day) return;
+
+    const result = addAttachment(day, attachment);
+    if (!result.ok) {
+      setError(result.hint);
+      return;
+    }
+
+    commitWeek({
+      ...week,
+      days: week.days.map((d) =>
+        d.weekday === weekday ? result.value : d,
+      ),
+    });
+  }
+
+  /** Entfernt einen Anhang von einem Tag und persistiert. */
+  function handleRemoveAttachment(weekday: Weekday, attachmentId: string) {
+    commitWeek({
+      ...week,
+      days: week.days.map((d) =>
+        d.weekday === weekday ? removeAttachment(d, attachmentId) : d,
+      ),
+    });
+  }
+
   return (
     <div className="w-full px-4 sm:px-12 py-6 sm:py-8">
       <header className="mb-6">
@@ -428,6 +466,8 @@ export default function Home() {
                     onTextChange={(v) => setDayText(key, v)}
                     onGenerate={() => generateDay(key)}
                     onLoadFromGit={() => loadFromGit(key)}
+                    onAddAttachment={(attachment) => handleAddAttachment(key, attachment)}
+                    onRemoveAttachment={(attachmentId) => handleRemoveAttachment(key, attachmentId)}
                   />
                 </div>
               );
@@ -451,6 +491,8 @@ export default function Home() {
             istLeer={istInhaltsleer(week)}
             revising={generating?.type === "revise"}
             busy={busy}
+            uploading={uploading}
+            onUploadingChange={setUploading}
             onJournalTextChange={setJournalText}
             onReset={resetJournalToDerived}
             onRevise={reviseJournal}

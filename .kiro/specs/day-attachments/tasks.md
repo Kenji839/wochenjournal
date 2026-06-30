@@ -73,7 +73,7 @@ Verifikation nach Code-Änderungen: `npm run lint`, `npx tsc --noEmit`,
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.6**
     - Grenze 2 000 000 Byte inklusiv, 0 Byte und nicht-erlaubte MIME-Typen
 
-- [~] 3. Checkpoint – Anhang-Logik verifizieren
+- [x] 3. Checkpoint – Anhang-Logik verifizieren
   - `npm run lint`, `npx tsc --noEmit`, `npm run test` ausführen
   - Ensure all tests pass, ask the user if questions arise.
 
@@ -114,7 +114,7 @@ Verifikation nach Code-Änderungen: `npm run lint`, `npx tsc --noEmit`,
     - **Property 8: Export-Formatierung je Anhangtyp**
     - **Validates: Requirements 6.2, 6.3, 6.4, 6.5, 2.5**
 
-- [~] 6. Checkpoint – Logik-Schicht (lib) verifizieren
+- [x] 6. Checkpoint – Logik-Schicht (lib) verifizieren
   - `npm run lint`, `npx tsc --noEmit`, `npm run test` ausführen
   - Ensure all tests pass, ask the user if questions arise.
 
@@ -184,28 +184,28 @@ Verifikation nach Code-Änderungen: `npm run lint`, `npx tsc --noEmit`,
     - Bei fehlgeschlagenem Bild-Upload abbrechen, bevor ein Body mit Makros entsteht
     - _Requirements: 8.5, 8.6_
 
-  - [-]* 8.2 Integrationstest: erfolgreicher Bild-Upload-Ablauf
+  - [x]* 8.2 Integrationstest: erfolgreicher Bild-Upload-Ablauf
     - `fetch` gemockt: Seite sicherstellen → alle Bilder hochladen → Body-Update mit
       Bild-Makros (Reihenfolge/Tageszuordnung geprüft)
     - _Requirements: 8.5_
 
-  - [-]* 8.3 Integrationstest: Abbruch bei fehlgeschlagenem Bild-Upload
+  - [x]* 8.3 Integrationstest: Abbruch bei fehlgeschlagenem Bild-Upload
     - `fetch` gemockt: Bild-Upload schlägt fehl → **kein** Body-Update mit Bild-Makros;
       Fehler wird generisch ohne Zugangsdaten propagiert
     - _Requirements: 8.6_
 
-- [~] 9. Checkpoint – Confluence-Schicht verifizieren
+- [x] 9. Checkpoint – Confluence-Schicht verifizieren
   - `npm run lint`, `npx tsc --noEmit`, `npm run test` ausführen
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 10. Upload-Endpoint erweitern (`app/api/confluence/route.ts`)
+- [x] 10. Upload-Endpoint erweitern (`app/api/confluence/route.ts`)
   - Erweiterten Request validieren (zusätzlich `days` als Array, `reflexion` als
     String) und an `uploadJournal` durchreichen
   - Bestehende Status-/Fehlerlogik beibehalten (`ConfigError` → 500, sonst → 502,
     generische Meldung ohne Zugangsdaten)
   - _Requirements: 8.5, 8.6_
 
-- [-] 11. Day_Attachment_Editor in `components/DayCard.tsx`
+- [x] 11. Day_Attachment_Editor in `components/DayCard.tsx`
   - Additive Props `onAddAttachment(attachment)` und `onRemoveAttachment(attachmentId)`
     (bestehende Signatur erhalten)
   - Drei Bedienelemente (Link / Code / Bild) zum Hinzufügen; Eingaben über
@@ -218,7 +218,7 @@ Verifikation nach Code-Änderungen: `npm run lint`, `npx tsc --noEmit`,
   - Alle Hinzufügen/Entfernen-Elemente `disabled`, solange `busy` (Generierung/Upload)
   - _Requirements: 1.1, 1.3, 1.4, 1.5, 1.7, 2.2, 2.3, 2.4, 3.2, 3.3, 3.4, 4.2, 4.3, 4.4, 4.5_
 
-- [~] 12. Callbacks und Quota-Hinweis in `app/page.tsx`
+- [x] 12. Callbacks und Quota-Hinweis in `app/page.tsx`
   - Callbacks `addAttachment(weekday, attachment)` und
     `removeAttachment(weekday, attachmentId)` über `lib/attachments.ts` und
     `commitWeek` persistieren; an `DayCard` durchreichen
@@ -228,12 +228,12 @@ Verifikation nach Code-Änderungen: `npm run lint`, `npx tsc --noEmit`,
   - Laufender Upload sperrt die Anhang-Bedienelemente (in `busy` einbeziehen)
   - _Requirements: 1.5, 5.1, 5.3_
 
-- [ ] 13. Strukturierten Upload-Request in `components/JournalPreview.tsx`
+- [x] 13. Strukturierten Upload-Request in `components/JournalPreview.tsx`
   - Upload-Body um `days: week.days` und `reflexion: week.reflexion` erweitern
     (zusätzlich zum bestehenden `journalText`, `kw`, `jahr`)
   - _Requirements: 7.1, 8.1, 8.5_
 
-- [~] 14. Abschluss-Checkpoint – Gesamtverifikation
+- [x] 14. Abschluss-Checkpoint – Gesamtverifikation
   - `npm run lint`, `npx tsc --noEmit`, `npm run test` und `npm run build` ausführen
   - Ensure all tests pass, ask the user if questions arise.
 
