@@ -17,11 +17,52 @@ export const WEEKDAYS: { key: Weekday; label: string }[] = [
   { key: "freitag", label: "Freitag" },
 ];
 
+/** Gemeinsame Basis aller Tagesanhänge. */
+interface AttachmentBase {
+  /** Stabile id (crypto.randomUUID) für Reihenfolge, Entfernen und Confluence-Dateinamen. */
+  id: string;
+}
+
+/** Bild-Anhang: Base64-kodierte Rasterdaten + Originaldateiname + optionale Unterschrift. */
+export interface ImageAttachment extends AttachmentBase {
+  type: "image";
+  /** Base64-kodierte Bilddaten (ohne Data-URL-Präfix). */
+  data: string;
+  mimeType: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+  /** Ursprünglicher Dateiname der ausgewählten Datei. */
+  filename: string;
+  /** Optionale Bildunterschrift (≤ 200 Zeichen). */
+  caption?: string;
+}
+
+/** Code-Snippet: unveränderter Quelltext + optionale Sprachangabe. */
+export interface CodeAttachment extends AttachmentBase {
+  type: "code";
+  /** Quelltext, unverändert (inkl. Zeilenumbrüchen/Einrückungen/umschliessender Leerzeichen). */
+  source: string;
+  /** Optionale Sprachangabe (≤ 30 Zeichen). */
+  language?: string;
+}
+
+/** Link: URL + optionaler Anzeigetext. */
+export interface LinkAttachment extends AttachmentBase {
+  type: "link";
+  /** Mit http:// oder https:// beginnende URL (≤ 2048 Zeichen). */
+  url: string;
+  /** Optionaler Anzeigetext (≤ 200 Zeichen); fehlt er, gilt die URL als Anzeigetext. */
+  displayText?: string;
+}
+
+/** Diskriminierte Union aller Anhangtypen (über das Feld `type`). */
+export type Attachment = ImageAttachment | CodeAttachment | LinkAttachment;
+
 /** Ein einzelner Wochentag: rohe Stichworte und generierter/editierter Absatz. */
 export interface DayEntry {
   weekday: Weekday;
   stichworte: string;
   text: string;
+  /** Tagesanhänge in Reihenfolge ihres Hinzufügens (optional; fehlend = []). */
+  attachments?: Attachment[];
 }
 
 /** Alle Daten einer Kalenderwoche. */
@@ -86,6 +127,10 @@ export interface ConfluenceUploadRequest {
   journalText: string;
   kw: number;
   jahr: number;
+  /** Strukturierte Tage mit Text und Anhängen für Link-/Code-/Bild-Wiedergabe. */
+  days: DayEntry[];
+  /** Reflexionsblock (Text). */
+  reflexion: string;
 }
 
 /** Erfolgs-Antwort von POST /api/confluence. */

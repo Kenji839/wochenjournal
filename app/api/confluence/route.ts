@@ -13,12 +13,16 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Ungültiger Request-Body.", { status: 400 });
   }
 
-  // Pflichtangaben pruefen (Req 6.4): journalText nichtleer, kw/jahr Zahlen.
+  // Pflichtangaben pruefen: journalText nichtleer, kw/jahr Zahlen sowie die
+  // strukturierte Woche (days als Array, reflexion als String) fuer den
+  // Link-/Code-/Bild-Upload (Req 8.5, 8.6).
   if (
     typeof body.journalText !== "string" ||
     body.journalText.trim() === "" ||
     typeof body.kw !== "number" ||
-    typeof body.jahr !== "number"
+    typeof body.jahr !== "number" ||
+    !Array.isArray(body.days) ||
+    typeof body.reflexion !== "string"
   ) {
     return new Response("Pflichtangaben fehlen.", { status: 400 });
   }

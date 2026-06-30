@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { journalFileName } from "@/lib/journal";
-import type { ConfluenceUploadResponse, WeekJournal } from "@/types/journal";
+import type {
+  ConfluenceUploadRequest,
+  ConfluenceUploadResponse,
+  WeekJournal,
+} from "@/types/journal";
 
 interface JournalPreviewProps {
   week: WeekJournal;
@@ -11,6 +15,8 @@ interface JournalPreviewProps {
   istLeer: boolean;
   revising: boolean;
   busy: boolean;
+  uploading: boolean;
+  onUploadingChange: (uploading: boolean) => void;
   onJournalTextChange: (value: string) => void;
   onReset: () => void;
   onRevise: (anweisung: string) => void;
@@ -30,6 +36,8 @@ export default function JournalPreview({
   istLeer,
   revising,
   busy,
+  uploading,
+  onUploadingChange,
   onJournalTextChange,
   onReset,
   onRevise,
@@ -61,8 +69,9 @@ export default function JournalPreview({
   };
 
   const handleUpload = async () => {
-    if (istLeer || status.kind === "loading") return;
+    if (istLeer || uploading) return;
 
+    onUploadingChange(true);
     setStatus({ kind: "loading" });
     try {
       const res = await fetch("/api/confluence", {
@@ -72,16 +81,21 @@ export default function JournalPreview({
           journalText: displayedText,
           kw: week.kw,
           jahr: week.jahr,
-        }),
+          days: week.days,
+          reflexion: week.reflexion,
+        } satisfies ConfluenceUploadRequest),
       });
       if (!res.ok) {
         setStatus({ kind: "error" });
+        onUploadingChange(false);
         return;
       }
       const data = (await res.json()) as ConfluenceUploadResponse;
       setStatus({ kind: "success", action: data.action });
+      onUploadingChange(false);
     } catch {
       setStatus({ kind: "error" });
+      onUploadingChange(false);
     }
   };
 
@@ -127,7 +141,7 @@ export default function JournalPreview({
           <button
             type="button"
             onClick={handleUpload}
-            disabled={istLeer || status.kind === "loading"}
+            disabled={istLeer || uploading}
             className="rounded-control border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:opacity-50"
           >
             Nach Confluence hochladen
